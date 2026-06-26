@@ -46,18 +46,29 @@ Write-Log '系統管理員權限檢查通過。'
 
 # --- 2. 程式存在檢查（用 PowerShell 動態偵測路徑）---
 # 正常情況下 LogiOptionsMgr 此刻應該已在執行；以執行中進程的實際路徑為優先依據。
-$mgrRunning = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($mgrRunning) {
-    Write-Log ("偵測到 LogiOptionsMgr 正在執行 (PID: {0})，符合預期。" -f $mgrRunning.Id)
-} else {
-    Write-Log 'WARN: 未偵測到執行中的 LogiOptionsMgr（正常情況下此刻應在執行）。仍會嘗試以預設路徑安裝。'
-}
+$mgrRunning = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path } | Select-Object -First 1
 
-$MgrPath = Get-LogiMgrPath
-if (-not $MgrPath) {
-    Write-Log 'ERROR: 找不到 LogiOptionsMgr.exe（進程未執行且預設安裝路徑不存在）。'
-    Write-Log '請確認是否已安裝 Logitech Options，安裝後再執行。'
-    exit 1
+if ($mgrRunning) {
+    $MgrPath = $mgrRunning.Path
+    Write-Log ("偵測到 LogiOptionsMgr 正在執行 (PID: {0})，使用其實際路徑: {1}" -f $mgrRunning.Id, $MgrPath)
+} else {
+    # 找不到執行中的程式 → 提醒使用者是否改用預設/搜尋到的路徑
+    Write-Log 'WARN: 未偵測到執行中的 LogiOptionsMgr（正常情況下此刻應在執行）。'
+    $fallback = Get-LogiMgrPath
+    if (-not $fallback) {
+        Write-Log 'ERROR: 也找不到任何 LogiOptionsMgr.exe（預設安裝路徑不存在）。'
+        Write-Log '請確認是否已安裝 Logitech Options，安裝後再執行。'
+        exit 1
+    }
+
+    $answer = Read-Host "找不到執行中的 LogiOptionsMgr。是否改用此路徑安裝？`n  $fallback`n(Y/N)"
+    if ($answer -notmatch '^(y|yes)$') {
+        Write-Log "使用者取消：未確認使用預設路徑 $fallback。安裝中止。"
+        exit 1
+    }
+    $MgrPath = $fallback
+    Write-Log "使用者確認使用路徑: $MgrPath"
 }
 Write-Log "找到 LogiOptionsMgr.exe: $MgrPath"
 
