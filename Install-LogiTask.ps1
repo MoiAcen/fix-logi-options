@@ -10,13 +10,30 @@
 
 $ErrorActionPreference = 'Stop'
 
-$TaskName   = 'FixLogiOptions'
-$MgrPath    = 'C:\ProgramData\Logishrd\LogiOptions\Software\Current\LogiOptionsMgr.exe'
-$ScriptPath = Join-Path $PSScriptRoot 'Restart-LogiOptions.ps1'
+$TaskName       = 'FixLogiOptions'
+$ScriptPath     = Join-Path $PSScriptRoot 'Restart-LogiOptions.ps1'
+$DefaultMgrPath = 'C:\ProgramData\Logishrd\LogiOptions\Software\Current\LogiOptionsMgr.exe'
 
 function Write-Log {
     param([string]$Message)
     Write-Host ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message)
+}
+
+# 動態解析 LogiOptionsMgr.exe 路徑（執行中進程優先 → 預設路徑 → 遞迴搜尋）
+function Get-LogiMgrPath {
+    $running = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path } | Select-Object -First 1
+    if ($running) { return $running.Path }
+
+    if (Test-Path $DefaultMgrPath) { return $DefaultMgrPath }
+
+    $base = 'C:\ProgramData\Logishrd\LogiOptions\Software'
+    if (Test-Path $base) {
+        $found = Get-ChildItem -Path $base -Filter 'LogiOptionsMgr.exe' -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($found) { return $found.FullName }
+    }
+    return $null
 }
 
 # --- 1. 系統管理員權限檢查 ---
@@ -27,9 +44,18 @@ if (-not $principalCheck.IsInRole([Security.Principal.WindowsBuiltInRole]::Admin
 }
 Write-Log '系統管理員權限檢查通過。'
 
-# --- 2. 程式存在檢查 ---
-if (-not (Test-Path $MgrPath)) {
-    Write-Log "ERROR: 找不到 LogiOptionsMgr.exe，路徑: $MgrPath"
+# --- 2. 程式存在檢查（用 PowerShell 動態偵測路徑）---
+# 正常情況下 LogiOptionsMgr 此刻應該已在執行；以執行中進程的實際路徑為優先依據。
+$mgrRunning = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($mgrRunning) {
+    Write-Log ("偵測到 LogiOptionsMgr 正在執行 (PID: {0})，符合預期。" -f $mgrRunning.Id)
+} else {
+    Write-Log 'WARN: 未偵測到執行中的 LogiOptionsMgr（正常情況下此刻應在執行）。仍會嘗試以預設路徑安裝。'
+}
+
+$MgrPath = Get-LogiMgrPath
+if (-not $MgrPath) {
+    Write-Log 'ERROR: 找不到 LogiOptionsMgr.exe（進程未執行且預設安裝路徑不存在）。'
     Write-Log '請確認是否已安裝 Logitech Options，安裝後再執行。'
     exit 1
 }

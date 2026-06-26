@@ -33,8 +33,10 @@
 
 - Windows 10 或更新版本
 - PowerShell 5.1 以上（Windows 10 內建）
-- 已安裝 Logitech Options，且核心程式位於預設路徑：
-  `C:\ProgramData\Logishrd\LogiOptions\Software\Current\LogiOptionsMgr.exe`
+- 已安裝 Logitech Options（且正常情況下 `LogiOptionsMgr.exe` 此刻應已在執行）。
+  腳本會用 PowerShell 動態偵測路徑：優先取執行中進程的實際路徑，
+  其次預設路徑 `C:\ProgramData\Logishrd\LogiOptions\Software\Current\LogiOptionsMgr.exe`，
+  最後遞迴搜尋安裝目錄
 - 安裝/移除排程需要**系統管理員權限**
 
 ---
