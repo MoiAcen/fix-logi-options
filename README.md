@@ -2,18 +2,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> ## 📣 給 Logitech 的一封公開信
->
-> 你們的 **Logitech Options** 又又又罷工了。
-> 滑鼠的**自訂鍵設定隨機失效**——明明設好的按鍵突然沒反應，核心進程 `LogiOptionsMgr.exe`
-> 不是假死就是直接擺爛，要嘛重開軟體、要嘛重開機才會好。
->
-> 這個 bug **存在好幾年了**，論壇上一堆人哭，你們依然當沒看到。
-> 既然官方不做事，那就由使用者自己寫排程幫你們擦屁股。
-> 謝謝 Logitech 讓我有機會練 PowerShell。🙏
->
-> *(Logitech Options randomly loses mouse button customizations — a bug that has existed
-> for years and Logitech still hasn't fixed. So we fix it ourselves.)*
+## 為什麼有這個專案
+
+**Logitech Options** 的滑鼠**自訂鍵設定會隨機失效**——明明設好的按鍵突然沒反應，
+核心進程 `LogiOptionsMgr.exe` 假死或擺爛，往往要重開軟體或重開機才會好。
+
+這個 bug 已經存在多年，Logitech 始終沒有修。既然官方不處理，就用一個排程任務
+在登入與系統喚醒時自動重啟相關進程，讓自訂鍵恢復正常。
 
 ---
 
