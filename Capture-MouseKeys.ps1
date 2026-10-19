@@ -50,6 +50,7 @@ public static class LlHook
     public const int WM_MOUSEWHEEL  = 0x020A;
     public const int WM_XBUTTONDOWN = 0x020B;
     public const int WM_XBUTTONUP   = 0x020C;
+    public const int WM_MOUSEHWHEEL = 0x020E;
 
     public const uint LLKHF_INJECTED        = 0x10;
     public const uint LLMHF_INJECTED        = 0x01;
@@ -149,7 +150,16 @@ public static class LlHook
                     case WM_RBUTTONUP:   what = "RIGHT UP"; break;
                     case WM_MBUTTONDOWN: what = "MIDDLE DOWN"; break;
                     case WM_MBUTTONUP:   what = "MIDDLE UP"; break;
-                    case WM_MOUSEWHEEL:  what = "WHEEL"; break;
+                    case WM_MOUSEWHEEL:  what = "WHEEL (垂直)"; break;
+                    case WM_MOUSEHWHEEL:
+                    {
+                        short d = (short)(m.mouseData >> 16);  // <0 左, >0 右
+                        what = "HWHEEL " + (d < 0 ? "LEFT" : "RIGHT");
+                        // 橫向捲動：很可能就是「失效時」滾輪側鍵退回的原始行為
+                        tag = injected ? "  【橫向捲動｜injected】"
+                                       : "  【橫向捲動｜原始滾輪側鍵? 失效徵兆】";
+                        break;
+                    }
                     case WM_XBUTTONDOWN:
                     case WM_XBUTTONUP:
                     {
@@ -167,8 +177,8 @@ public static class LlHook
                 if (what != null)
                 {
                     string line = string.Format("MOUSE {0} injected={1}{2}", what, (injected ? "Yes" : "No"), tag);
-                    // 只把「羅技注入(injected=Yes)」標成 >>>，那才是你設定的鍵有生效
-                    Enqueue(line, injected);
+                    // injected=Yes（羅技生效）或 HWHEEL（可能是失效徵兆）都標 >>> 方便注意
+                    Enqueue(line, injected || what.StartsWith("HWHEEL"));
                 }
             }
         }
