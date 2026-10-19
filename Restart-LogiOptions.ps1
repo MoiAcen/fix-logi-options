@@ -1,12 +1,12 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    é‡å•Ÿ Logitech Options ç›¸é—œé€²ç¨‹ï¼Œæ¢å¾©æ»‘é¼ è‡ªè¨‚éµåŠŸèƒ½ã€‚
+    ­«±Ò Logitech Options ¬ÛÃö¶iµ{¡A«ì´_·Æ¹«¦Û­qÁä¥\¯à¡C
 .DESCRIPTION
-    ç”± FixLogiOptions æ’ç¨‹ä»»å‹™å‘¼å«ã€‚æ®ºæ‰ LogiOptions / LogiOptionsMgr / LogiOverlay
-    å¾Œï¼Œé‡æ–°å•Ÿå‹•æ ¸å¿ƒé€²ç¨‹ LogiOptionsMgr.exeï¼ˆæœƒè‡ªå‹•å¸¶èµ·å­é€²ç¨‹ï¼‰ã€‚
-    åŸ·è¡Œç´€éŒ„å¯«å…¥ %TEMP%\FixLogiOptions.logã€‚
-    æœ¬è…³æœ¬ä¸éœ€è¦ç³»çµ±ç®¡ç†å“¡æ¬Šé™ã€‚
+    ¥Ñ FixLogiOptions ±Æµ{¥ô°È©I¥s¡C±ş±¼ LogiOptions / LogiOptionsMgr / LogiOverlay
+    «á¡A­«·s±Ò°Ê®Ö¤ß¶iµ{ LogiOptionsMgr.exe¡]·|¦Û°Ê±a°_¤l¶iµ{¡^¡C
+    °õ¦æ¬ö¿ı¼g¤J %TEMP%\FixLogiOptions.log¡C
+    ¥»¸}¥»¤£»İ­n¨t²ÎºŞ²z­ûÅv­­¡C
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $LogFile   = Join-Path $env:TEMP 'FixLogiOptions.log'
 $Processes = @('LogiOptions', 'LogiOptionsMgr', 'LogiOverlay')
 
-# é è¨­å®‰è£è·¯å¾‘ï¼ˆåƒ…ä½œç‚ºåµæ¸¬ä¸åˆ°åŸ·è¡Œä¸­é€²ç¨‹æ™‚çš„å¾Œå‚™ï¼‰
+# ¹w³]¦w¸Ë¸ô®|¡]¶È§@¬°°»´ú¤£¨ì°õ¦æ¤¤¶iµ{®Éªº«á³Æ¡^
 $DefaultMgrPath = 'C:\ProgramData\Logishrd\LogiOptions\Software\Current\LogiOptionsMgr.exe'
 
 function Write-Log {
@@ -24,15 +24,15 @@ function Write-Log {
     try {
         Add-Content -Path $LogFile -Value $line -Encoding UTF8 -ErrorAction Stop
     } catch {
-        # é€£ log éƒ½å¯«ä¸é€²å»å°±ç®—äº†ï¼Œè‡³å°‘ console çœ‹å¾—åˆ°
-        Write-Host "[WARN] ç„¡æ³•å¯«å…¥ log æª”: $LogFile"
+        # ³s log ³£¼g¤£¶i¥h´Nºâ¤F¡A¦Ü¤Ö console ¬İ±o¨ì
+        Write-Host "[WARN] µLªk¼g¤J log ÀÉ: $LogFile"
     }
 }
 
-# å‹•æ…‹è§£æ LogiOptionsMgr.exe è·¯å¾‘ï¼š
-#   1. å„ªå…ˆå¾æ­£åœ¨åŸ·è¡Œçš„é€²ç¨‹å–å¾—å¯¦éš›è·¯å¾‘ï¼ˆæœ€å¯é ï¼‰
-#   2. å¾Œå‚™ï¼šé è¨­å®‰è£è·¯å¾‘
-#   3. å¾Œå‚™ï¼šåœ¨å®‰è£ç›®éŒ„ä¸‹éè¿´æœå°‹ï¼ˆç‰ˆæœ¬è³‡æ–™å¤¾ä¸ä¸€å®šå« Currentï¼‰
+# °ÊºA¸ÑªR LogiOptionsMgr.exe ¸ô®|¡G
+#   1. Àu¥ı±q¥¿¦b°õ¦æªº¶iµ{¨ú±o¹ê»Ú¸ô®|¡]³Ì¥i¾a¡^
+#   2. «á³Æ¡G¹w³]¦w¸Ë¸ô®|
+#   3. «á³Æ¡G¦b¦w¸Ë¥Ø¿ı¤U»¼°j·j´M¡]ª©¥»¸ê®Æ§¨¤£¤@©w¥s Current¡^
 function Get-LogiMgrPath {
     $running = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue |
         Where-Object { $_.Path } | Select-Object -First 1
@@ -51,57 +51,57 @@ function Get-LogiMgrPath {
 
 Write-Log '--- FixLogiOptions restart begin ---'
 
-# --- å…ˆè§£æè·¯å¾‘ï¼ˆå¿…é ˆåœ¨æ®ºæ‰é€²ç¨‹ä¹‹å‰ï¼Œå¦å‰‡åŸ·è¡Œä¸­é€²ç¨‹æ¶ˆå¤±å°±æŠ“ä¸åˆ°å¯¦éš›è·¯å¾‘ï¼‰---
-# æ­£å¸¸æƒ…æ³ä¸‹ LogiOptionsMgr æ­¤åˆ»æ‡‰è©²å·²åœ¨åŸ·è¡Œï¼›è‹¥åµæ¸¬ä¸åˆ°ï¼Œä»£è¡¨å®ƒå·²ç¶“æ›æ‰ï¼Œ
-# é€™æ­£æ˜¯æœ¬è…³æœ¬è¦ä¿®å¾©çš„ç—‡ç‹€ã€‚
+# --- ¥ı¸ÑªR¸ô®|¡]¥²¶·¦b±ş±¼¶iµ{¤§«e¡A§_«h°õ¦æ¤¤¶iµ{®ø¥¢´N§ì¤£¨ì¹ê»Ú¸ô®|¡^---
+# ¥¿±`±¡ªp¤U LogiOptionsMgr ¦¹¨èÀ³¸Ó¤w¦b°õ¦æ¡F­Y°»´ú¤£¨ì¡A¥Nªí¥¦¤w¸g±¾±¼¡A
+# ³o¥¿¬O¥»¸}¥»­n­×´_ªº¯gª¬¡C
 $mgrRunningBefore = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($mgrRunningBefore) {
-    Write-Log ("åµæ¸¬åˆ° LogiOptionsMgr æ­£åœ¨åŸ·è¡Œ (PID: {0})ï¼Œç¬¦åˆé æœŸã€‚" -f $mgrRunningBefore.Id)
+    Write-Log ("°»´ú¨ì LogiOptionsMgr ¥¿¦b°õ¦æ (PID: {0})¡A²Å¦X¹w´Á¡C" -f $mgrRunningBefore.Id)
 } else {
-    Write-Log 'WARN: æœªåµæ¸¬åˆ°åŸ·è¡Œä¸­çš„ LogiOptionsMgrï¼ˆæ­£å¸¸æƒ…æ³ä¸‹æ­¤åˆ»æ‡‰åœ¨åŸ·è¡Œï¼‰â€”â€”å¯èƒ½å·²æ›æ‰ï¼Œæ­£æ˜¯è¦ä¿®å¾©çš„ç‹€æ³ã€‚'
+    Write-Log 'WARN: ¥¼°»´ú¨ì°õ¦æ¤¤ªº LogiOptionsMgr¡]¥¿±`±¡ªp¤U¦¹¨èÀ³¦b°õ¦æ¡^¡X¡X¥i¯à¤w±¾±¼¡A¥¿¬O­n­×´_ªºª¬ªp¡C'
 }
 
 $MgrPath = Get-LogiMgrPath
 if (-not $MgrPath) {
-    Write-Log "ERROR: ç„¡æ³•è§£æ LogiOptionsMgr.exe è·¯å¾‘ï¼ˆé€²ç¨‹æœªåŸ·è¡Œä¸”é è¨­è·¯å¾‘ä¸å­˜åœ¨ï¼‰ã€‚"
-    Write-Log 'è«‹ç¢ºèªæ˜¯å¦å·²å®‰è£ Logitech Optionsã€‚'
+    Write-Log "ERROR: µLªk¸ÑªR LogiOptionsMgr.exe ¸ô®|¡]¶iµ{¥¼°õ¦æ¥B¹w³]¸ô®|¤£¦s¦b¡^¡C"
+    Write-Log '½Ğ½T»{¬O§_¤w¦w¸Ë Logitech Options¡C'
     Write-Log '--- FixLogiOptions restart aborted ---'
     exit 1
 }
-Write-Log "ä½¿ç”¨ LogiOptionsMgr è·¯å¾‘: $MgrPath"
+Write-Log "¨Ï¥Î LogiOptionsMgr ¸ô®|: $MgrPath"
 
-# --- åœæ­¢æ‰€æœ‰å·²çŸ¥é€²ç¨‹ï¼ˆå…ˆ gracefulï¼Œæ®˜ç•™å† -Forceï¼‰---
+# --- °±¤î©Ò¦³¤wª¾¶iµ{¡]¥ı graceful¡A´İ¯d¦A -Force¡^---
 foreach ($name in $Processes) {
     $procs = Get-Process -Name $name -ErrorAction SilentlyContinue
     if ($procs) {
-        Write-Log ("åœæ­¢ {0} (PID: {1})..." -f $name, ($procs.Id -join ', '))
+        Write-Log ("°±¤î {0} (PID: {1})..." -f $name, ($procs.Id -join ', '))
         $procs | Stop-Process -ErrorAction SilentlyContinue
         Start-Sleep -Milliseconds 500
         $survivors = Get-Process -Name $name -ErrorAction SilentlyContinue
         if ($survivors) {
-            Write-Log "å¼·åˆ¶çµæŸ $name..."
+            Write-Log "±j¨îµ²§ô $name..."
             $survivors | Stop-Process -Force -ErrorAction SilentlyContinue
         }
     } else {
-        Write-Log "$name æœªåœ¨åŸ·è¡Œã€‚"
+        Write-Log "$name ¥¼¦b°õ¦æ¡C"
     }
 }
 
-Write-Log 'ç­‰å¾… 3 ç§’å¾Œé‡å•Ÿ...'
+Write-Log 'µ¥«İ 3 ¬í«á­«±Ò...'
 Start-Sleep -Seconds 3
 
-# --- å•Ÿå‹•æ ¸å¿ƒé€²ç¨‹ï¼ˆè·¯å¾‘å·²æ–¼å‰é¢è§£æï¼‰---
+# --- ±Ò°Ê®Ö¤ß¶iµ{¡]¸ô®|¤w©ó«e­±¸ÑªR¡^---
 if (-not (Test-Path $MgrPath)) {
-    Write-Log "ERROR: è·¯å¾‘å·²ä¸å­˜åœ¨: $MgrPath"
+    Write-Log "ERROR: ¸ô®|¤w¤£¦s¦b: $MgrPath"
     Write-Log '--- FixLogiOptions restart aborted ---'
     exit 1
 }
 
-Write-Log "å•Ÿå‹• LogiOptionsMgr: $MgrPath"
+Write-Log "±Ò°Ê LogiOptionsMgr: $MgrPath"
 Start-Process -FilePath $MgrPath
 
-# --- é‡å•Ÿå¾Œå­˜æ´»é©—è­‰ ---
-Write-Log 'ç­‰å¾… 5 ç§’é©—è­‰é€²ç¨‹å­˜æ´»...'
+# --- ­«±Ò«á¦s¬¡ÅçÃÒ ---
+Write-Log 'µ¥«İ 5 ¬íÅçÃÒ¶iµ{¦s¬¡...'
 Start-Sleep -Seconds 5
 
 $mgr = Get-Process -Name 'LogiOptionsMgr' -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -109,13 +109,13 @@ if ($mgr) {
     try {
         $aliveSec = [int]((Get-Date) - $mgr.StartTime).TotalSeconds
     } catch {
-        $aliveSec = 'æœªçŸ¥'
+        $aliveSec = '¥¼ª¾'
     }
-    Write-Log ("OK: LogiOptionsMgr å·²å­˜æ´» (PID: {0}, å·²åŸ·è¡Œç´„ {1} ç§’)ï¼Œé‡å•ŸæˆåŠŸã€‚" -f $mgr.Id, $aliveSec)
+    Write-Log ("OK: LogiOptionsMgr ¤w¦s¬¡ (PID: {0}, ¤w°õ¦æ¬ù {1} ¬í)¡A­«±Ò¦¨¥\¡C" -f $mgr.Id, $aliveSec)
     Write-Log '--- FixLogiOptions restart complete ---'
     exit 0
 } else {
-    Write-Log 'ERROR: é‡å•Ÿå¾Œ LogiOptionsMgr æœªå­˜æ´»ï¼Œé‡å•Ÿå¤±æ•—ã€‚'
+    Write-Log 'ERROR: ­«±Ò«á LogiOptionsMgr ¥¼¦s¬¡¡A­«±Ò¥¢±Ñ¡C'
     Write-Log '--- FixLogiOptions restart failed ---'
     exit 1
 }
