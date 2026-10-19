@@ -1,22 +1,22 @@
-#Requires -Version 5.1
+ï»¿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    ±´´ú Logitech ¶iµ{ªº°·±d«ü¼Ğ¡A¥Î¨ÓÅçÃÒ .Responding ¬O§_¥i¾a¡C
+    æ¢æ¸¬ Logitech é€²ç¨‹çš„å¥åº·æŒ‡æ¨™ï¼Œç”¨ä¾†é©—è­‰ .Responding æ˜¯å¦å¯é ã€‚
 .DESCRIPTION
-    ³o¬O¡u»`ÃÒ¡v¤u¨ã¡A¤£·|°Ê¨ì¥ô¦ó¶iµ{¡C¥Øªº¬O¦^µª¨â­Ó°İÃD¡G
-      1. LogiOptionsMgr ¦³¨S¦³¥Dµøµ¡¡H¨S¦³ªº¸Ü .Responding ¤@«ß¦^ True¡B¨S¦³Å²§O¤O¡C
-      2. ·í¦Û­qÁä¥¢®Äªº¨º¤@¨è¡A­ş¨Ç«ü¼Ğ¯uªºÅÜ¤F¡H
+    é€™æ˜¯ã€Œè’è­‰ã€å·¥å…·ï¼Œä¸æœƒå‹•åˆ°ä»»ä½•é€²ç¨‹ã€‚ç›®çš„æ˜¯å›ç­”å…©å€‹å•é¡Œï¼š
+      1. LogiOptionsMgr æœ‰æ²’æœ‰ä¸»è¦–çª—ï¼Ÿæ²’æœ‰çš„è©± .Responding ä¸€å¾‹å› Trueã€æ²’æœ‰é‘‘åˆ¥åŠ›ã€‚
+      2. ç•¶è‡ªè¨‚éµå¤±æ•ˆçš„é‚£ä¸€åˆ»ï¼Œå“ªäº›æŒ‡æ¨™çœŸçš„è®Šäº†ï¼Ÿ
 .PARAMETER Monitor
-    ¶}±Ò³sÄòºÊ¬İ¼Ò¦¡¡G¨C¹j IntervalSeconds ¬í¨ú¼Ë¤@¦¸¨Ã¼g¤J log¡C
-    Åı¥¦¶}µÛ¶]¹L¤@¦¸ºÎ¯v´`Àô¡A«öÁä¦º±¼®É¦^ÀY¹ï·Ó log¡C
+    é–‹å•Ÿé€£çºŒç›£çœ‹æ¨¡å¼ï¼šæ¯éš” IntervalSeconds ç§’å–æ¨£ä¸€æ¬¡ä¸¦å¯«å…¥ logã€‚
+    è®“å®ƒé–‹è‘—è·‘éä¸€æ¬¡ç¡çœ å¾ªç’°ï¼ŒæŒ‰éµæ­»æ‰æ™‚å›é ­å°ç…§ logã€‚
 .PARAMETER IntervalSeconds
-    ºÊ¬İ¼Ò¦¡ªº¨ú¼Ë¶¡¹j¡]¬í¡^¡A¹w³] 15¡C
+    ç›£çœ‹æ¨¡å¼çš„å–æ¨£é–“éš”ï¼ˆç§’ï¼‰ï¼Œé è¨­ 15ã€‚
 .EXAMPLE
     .\Diagnose-LogiHealth.ps1
-        ³æ¦¸§Ö·Ó¡A¬İ Responding ¹ï­ş¤ä¶iµ{¦³·N¸q¡C
+        å–®æ¬¡å¿«ç…§ï¼Œçœ‹ Responding å°å“ªæ”¯é€²ç¨‹æœ‰æ„ç¾©ã€‚
 .EXAMPLE
     .\Diagnose-LogiHealth.ps1 -Monitor
-        ³sÄòºÊ¬İ¡ACtrl+C °±¤î¡Clog ¼g¨ì %TEMP%\LogiHealthProbe.log
+        é€£çºŒç›£çœ‹ï¼ŒCtrl+C åœæ­¢ã€‚log å¯«åˆ° %TEMP%\LogiHealthProbe.log
 #>
 param(
     [switch]$Monitor,
@@ -31,27 +31,27 @@ function Write-Probe {
     param([string]$Message)
     $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
     Write-Host $line
-    try { Add-Content -Path $LogFile -Value $line -Encoding Default -ErrorAction Stop } catch { }
+    try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 -ErrorAction Stop } catch { }
 }
 
-# ¨ú±o³æ¤@¶iµ{ªº°·±d§Ö·Ó¡]¦r¦ê¡^¡C
+# å–å¾—å–®ä¸€é€²ç¨‹çš„å¥åº·å¿«ç…§ï¼ˆå­—ä¸²ï¼‰ã€‚
 function Get-ProcSnapshot {
     param([string]$Name)
     $procs = Get-Process -Name $Name -ErrorAction SilentlyContinue
-    if (-not $procs) { return "$Name : ¥¼¦b°õ¦æ" }
+    if (-not $procs) { return "$Name : æœªåœ¨åŸ·è¡Œ" }
 
     $lines = foreach ($p in $procs) {
         $hwnd = 0
         try { $hwnd = [int64]$p.MainWindowHandle } catch { }
-        # .Responding ¥u¦³¦b¦³¥Dµøµ¡®É¤~¦³·N¸q¡FµLµøµ¡®É .NET ¤@«ß¦^ True¡C
+        # .Responding åªæœ‰åœ¨æœ‰ä¸»è¦–çª—æ™‚æ‰æœ‰æ„ç¾©ï¼›ç„¡è¦–çª—æ™‚ .NET ä¸€å¾‹å› Trueã€‚
         $respMeaningful = ($hwnd -ne 0)
         $resp = $null
-        try { $resp = $p.Responding } catch { $resp = 'Åª¨ú¥¢±Ñ' }
+        try { $resp = $p.Responding } catch { $resp = 'è®€å–å¤±æ•—' }
 
         $start = $null
-        try { $start = $p.StartTime.ToString('HH:mm:ss') } catch { $start = '¥¼ª¾' }
+        try { $start = $p.StartTime.ToString('HH:mm:ss') } catch { $start = 'æœªçŸ¥' }
 
-        $note = if ($respMeaningful) { 'Responding ¦³·N¸q' } else { 'µL¥Dµøµ¡¡÷Responding µLÅ²§O¤O' }
+        $note = if ($respMeaningful) { 'Responding æœ‰æ„ç¾©' } else { 'ç„¡ä¸»è¦–çª—â†’Responding ç„¡é‘‘åˆ¥åŠ›' }
 
         "  {0,-16} PID={1,-6} Start={2} hWnd={3} Responding={4} [{5}]" -f `
             $Name, $p.Id, $start, $hwnd, $resp, $note
@@ -60,11 +60,11 @@ function Get-ProcSnapshot {
 }
 
 function Write-FullSnapshot {
-    Write-Probe '================ §Ö·Ó ================'
+    Write-Probe '================ å¿«ç…§ ================'
     foreach ($name in $Processes) {
         Write-Probe (Get-ProcSnapshot -Name $name)
     }
-    # ¥t¥~°O³Ìªñ¤@¦¸³ê¿ô¨Æ¥ó¡A¤è«K©MºÎ¯v®É¾÷¹ï·Ó¡C
+    # å¦å¤–è¨˜æœ€è¿‘ä¸€æ¬¡å–šé†’äº‹ä»¶ï¼Œæ–¹ä¾¿å’Œç¡çœ æ™‚æ©Ÿå°ç…§ã€‚
     try {
         $wake = Get-WinEvent -FilterHashtable @{
             LogName      = 'System'
@@ -72,20 +72,20 @@ function Write-FullSnapshot {
             Id           = 1
         } -MaxEvents 1 -ErrorAction SilentlyContinue
         if ($wake) {
-            Write-Probe ("  ³Ìªñ¤@¦¸³ê¿ô¨Æ¥ó: {0}" -f $wake.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))
+            Write-Probe ("  æœ€è¿‘ä¸€æ¬¡å–šé†’äº‹ä»¶: {0}" -f $wake.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss'))
         }
     } catch { }
 }
 
-Write-Probe ("±´´ú¶}©l (Monitor={0}, ¶¡¹j={1}s) log: {2}" -f $Monitor, $IntervalSeconds, $LogFile)
+Write-Probe ("æ¢æ¸¬é–‹å§‹ (Monitor={0}, é–“éš”={1}s) log: {2}" -f $Monitor, $IntervalSeconds, $LogFile)
 
 if ($Monitor) {
-    Write-Probe '³sÄòºÊ¬İ¤¤¡A«ö Ctrl+C °±¤î¡C«öÁä¥¢®Ä®É½Ğ°O¤U·í¤U®É¶¡¡A¦A¦^¨Ó¹ï·Ó³o¥÷ log¡C'
+    Write-Probe 'é€£çºŒç›£çœ‹ä¸­ï¼ŒæŒ‰ Ctrl+C åœæ­¢ã€‚æŒ‰éµå¤±æ•ˆæ™‚è«‹è¨˜ä¸‹ç•¶ä¸‹æ™‚é–“ï¼Œå†å›ä¾†å°ç…§é€™ä»½ logã€‚'
     while ($true) {
         Write-FullSnapshot
         Start-Sleep -Seconds $IntervalSeconds
     }
 } else {
     Write-FullSnapshot
-    Write-Probe '³æ¦¸§Ö·Ó§¹¦¨¡C­Y LogiOptionsMgr Åã¥Ü hWnd=0¡A¥Nªí .Responding ¤£¯à·í°·±d«ü¼Ğ¡C'
+    Write-Probe 'å–®æ¬¡å¿«ç…§å®Œæˆã€‚è‹¥ LogiOptionsMgr é¡¯ç¤º hWnd=0ï¼Œä»£è¡¨ .Responding ä¸èƒ½ç•¶å¥åº·æŒ‡æ¨™ã€‚'
 }

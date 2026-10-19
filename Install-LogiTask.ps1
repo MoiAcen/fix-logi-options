@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     註冊 FixLogiOptions 排程任務（上服務）。必須以系統管理員身分執行。

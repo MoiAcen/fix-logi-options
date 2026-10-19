@@ -1,14 +1,14 @@
-#Requires -Version 5.1
+ï»¿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Â²©ö¨Æ¥ó¸É®» UI¡G¦b¡u¥¿±`¡v»P¡u²§±`¡v¨âºØª¬ºA¦U§ì¤@¦¸³Ìªñ¨Æ¥ó¡A¦A¤ñ¹ï®t²§¡A
-    §ä¥X©M Logitech ¦Û­qÁä¥¢®Ä¬ÛÃöªº¨ºÁû¨t²Î¨Æ¥ó¡C
+    ç°¡æ˜“äº‹ä»¶è£œæ‰ UIï¼šåœ¨ã€Œæ­£å¸¸ã€èˆ‡ã€Œç•°å¸¸ã€å…©ç¨®ç‹€æ…‹å„æŠ“ä¸€æ¬¡æœ€è¿‘äº‹ä»¶ï¼Œå†æ¯”å°å·®ç•°ï¼Œ
+    æ‰¾å‡ºå’Œ Logitech è‡ªè¨‚éµå¤±æ•ˆç›¸é—œçš„é‚£é¡†ç³»çµ±äº‹ä»¶ã€‚
 .DESCRIPTION
-    ¥Îªk¡G
-      1. «öÁäÁÙ¥¿±`®É¡A«ö¡i§ì¨ú ¡÷ ¼Ğ°O¥¿±`¡j¡C
-      2. «öÁä¥¢®Ä«á¡]¨Ò¦pºÎ¯v³ê¿ô«á¡^¡A«ö¡i§ì¨ú ¡÷ ¼Ğ°O²§±`¡j¡C
-      3. «ö¡i¤ñ¹ï®t²§¡j¡÷ ¦C¥X¡u¥u¦b²§±`®É¥X²{¡vªº¨Æ¥ó¡A¨º³q±`´N¬O¤¸¥û¡C
-    ¤£·|°Ê¨ì¥ô¦ó¶iµ{¡A¯ÂÅª¨ú¨Æ¥ó¤é»x¡C¨â¥÷§Ö·Ó¦s¦b %TEMP%\LogiEvents_*.txt¡C
+    ç”¨æ³•ï¼š
+      1. æŒ‰éµé‚„æ­£å¸¸æ™‚ï¼ŒæŒ‰ã€æŠ“å– â†’ æ¨™è¨˜æ­£å¸¸ã€‘ã€‚
+      2. æŒ‰éµå¤±æ•ˆå¾Œï¼ˆä¾‹å¦‚ç¡çœ å–šé†’å¾Œï¼‰ï¼ŒæŒ‰ã€æŠ“å– â†’ æ¨™è¨˜ç•°å¸¸ã€‘ã€‚
+      3. æŒ‰ã€æ¯”å°å·®ç•°ã€‘â†’ åˆ—å‡ºã€Œåªåœ¨ç•°å¸¸æ™‚å‡ºç¾ã€çš„äº‹ä»¶ï¼Œé‚£é€šå¸¸å°±æ˜¯å…ƒå…‡ã€‚
+    ä¸æœƒå‹•åˆ°ä»»ä½•é€²ç¨‹ï¼Œç´”è®€å–äº‹ä»¶æ—¥èªŒã€‚å…©ä»½å¿«ç…§å­˜åœ¨ %TEMP%\LogiEvents_*.txtã€‚
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -19,15 +19,15 @@ $script:AbnormalSnap = $null
 $NormalFile   = Join-Path $env:TEMP 'LogiEvents_Normal.txt'
 $AbnormalFile = Join-Path $env:TEMP 'LogiEvents_Abnormal.txt'
 
-# ­n±½´yªº¨Æ¥ó¤é»x¡CSystem ¤@©w¦b¡A§t Power-Troubleshooter / Kernel-Power / Kernel-PnP¡F
-# ¸Ë¸m¬ÛÃöªº operational log ¤£¤@©w¶}±Ò¡A¥Î try/catch ®e¿ù¡C
+# è¦æƒæçš„äº‹ä»¶æ—¥èªŒã€‚System ä¸€å®šåœ¨ï¼Œå« Power-Troubleshooter / Kernel-Power / Kernel-PnPï¼›
+# è£ç½®ç›¸é—œçš„ operational log ä¸ä¸€å®šé–‹å•Ÿï¼Œç”¨ try/catch å®¹éŒ¯ã€‚
 $LogNames = @(
     'System',
     'Microsoft-Windows-Kernel-PnP/Configuration',
     'Microsoft-Windows-DeviceSetupManager/Admin'
 )
 
-# §ì¨ú³Ìªñ N ¤ÀÄÁªº¨Æ¥ó¡A¦^¶Çª«¥ó°}¦C¡]Time/Log/Provider/Id/Message¡^¡C
+# æŠ“å–æœ€è¿‘ N åˆ†é˜çš„äº‹ä»¶ï¼Œå›å‚³ç‰©ä»¶é™£åˆ—ï¼ˆTime/Log/Provider/Id/Messageï¼‰ã€‚
 function Get-RecentEvents {
     param([int]$Minutes)
     $start = (Get-Date).AddMinutes(-$Minutes)
@@ -48,34 +48,34 @@ function Get-RecentEvents {
                 }
             }
         } catch {
-            # ¸Ó log ¤£¦s¦b©Î¥¼±Ò¥Î ¡÷ ²¤¹L¡C
+            # è©² log ä¸å­˜åœ¨æˆ–æœªå•Ÿç”¨ â†’ ç•¥éã€‚
         }
     }
     return ($all | Sort-Object Time)
 }
 
-# ¨Æ¥óªº¡u¨­¤ÀÃ±³¹¡v¡G©¿²¤®É¶¡¡A¥Î Provider+Id ·í key¡A¤è«K¤ñ¹ï¡C
+# äº‹ä»¶çš„ã€Œèº«åˆ†ç°½ç« ã€ï¼šå¿½ç•¥æ™‚é–“ï¼Œç”¨ Provider+Id ç•¶ keyï¼Œæ–¹ä¾¿æ¯”å°ã€‚
 function Get-Signature {
     param($Evt)
     return ("{0}|{1}" -f $Evt.Provider, $Evt.Id)
 }
 
-# §â¨Æ¥ó°}¦CÂà¦¨¥iÅª¤å¦r¡]§t¥Ø«e Logitech ¶iµ{ª¬ºA¤@¨Ö°O¿ı¡^¡C
+# æŠŠäº‹ä»¶é™£åˆ—è½‰æˆå¯è®€æ–‡å­—ï¼ˆå«ç›®å‰ Logitech é€²ç¨‹ç‹€æ…‹ä¸€ä½µè¨˜éŒ„ï¼‰ã€‚
 function Format-Snapshot {
     param($Events, [string]$Label)
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine(("===== {0} §Ö·Ó @ {1} =====" -f $Label, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')))
+    [void]$sb.AppendLine(("===== {0} å¿«ç…§ @ {1} =====" -f $Label, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')))
 
     foreach ($name in @('LogiOptions','LogiOptionsMgr','LogiOverlay')) {
         $p = Get-Process -Name $name -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($p) {
-            $st = try { $p.StartTime.ToString('HH:mm:ss') } catch { '¥¼ª¾' }
-            [void]$sb.AppendLine(("  ¶iµ{ {0}: °õ¦æ¤¤ PID={1} Start={2}" -f $name, $p.Id, $st))
+            $st = try { $p.StartTime.ToString('HH:mm:ss') } catch { 'æœªçŸ¥' }
+            [void]$sb.AppendLine(("  é€²ç¨‹ {0}: åŸ·è¡Œä¸­ PID={1} Start={2}" -f $name, $p.Id, $st))
         } else {
-            [void]$sb.AppendLine(("  ¶iµ{ {0}: ¥¼¦b°õ¦æ" -f $name))
+            [void]$sb.AppendLine(("  é€²ç¨‹ {0}: æœªåœ¨åŸ·è¡Œ" -f $name))
         }
     }
-    [void]$sb.AppendLine(("  ¦@ {0} µ§¨Æ¥ó:" -f $Events.Count))
+    [void]$sb.AppendLine(("  å…± {0} ç­†äº‹ä»¶:" -f $Events.Count))
     foreach ($e in $Events) {
         [void]$sb.AppendLine(("  [{0}] {1} / Id={2} :: {3}" -f `
             $e.Time.ToString('HH:mm:ss'), $e.Provider, $e.Id, $e.Message))
@@ -83,14 +83,14 @@ function Format-Snapshot {
     return $sb.ToString()
 }
 
-# ---------------- ¤¶­± ----------------
+# ---------------- ä»‹é¢ ----------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Logitech ¨Æ¥ó¸É®»¾¹'
+$form.Text = 'Logitech äº‹ä»¶è£œæ‰å™¨'
 $form.Size = New-Object System.Drawing.Size(860, 640)
 $form.StartPosition = 'CenterScreen'
 
 $lbl = New-Object System.Windows.Forms.Label
-$lbl.Text = '¦^·¹¤ÀÄÁ¼Æ¡G'
+$lbl.Text = 'å›æº¯åˆ†é˜æ•¸ï¼š'
 $lbl.Location = New-Object System.Drawing.Point(12, 16)
 $lbl.AutoSize = $true
 $form.Controls.Add($lbl)
@@ -102,27 +102,27 @@ $num.Width = 60
 $form.Controls.Add($num)
 
 $btnNormal = New-Object System.Windows.Forms.Button
-$btnNormal.Text = '§ì¨ú ¡÷ ¼Ğ°O¥¿±`'
+$btnNormal.Text = 'æŠ“å– â†’ æ¨™è¨˜æ­£å¸¸'
 $btnNormal.Location = New-Object System.Drawing.Point(170, 12)
 $btnNormal.Size = New-Object System.Drawing.Size(140, 30)
 $btnNormal.BackColor = [System.Drawing.Color]::FromArgb(200, 240, 200)
 $form.Controls.Add($btnNormal)
 
 $btnAbnormal = New-Object System.Windows.Forms.Button
-$btnAbnormal.Text = '§ì¨ú ¡÷ ¼Ğ°O²§±`'
+$btnAbnormal.Text = 'æŠ“å– â†’ æ¨™è¨˜ç•°å¸¸'
 $btnAbnormal.Location = New-Object System.Drawing.Point(320, 12)
 $btnAbnormal.Size = New-Object System.Drawing.Size(140, 30)
 $btnAbnormal.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
 $form.Controls.Add($btnAbnormal)
 
 $btnDiff = New-Object System.Windows.Forms.Button
-$btnDiff.Text = '¤ñ¹ï®t²§¡]§ä¤¸¥û¡^'
+$btnDiff.Text = 'æ¯”å°å·®ç•°ï¼ˆæ‰¾å…ƒå…‡ï¼‰'
 $btnDiff.Location = New-Object System.Drawing.Point(470, 12)
 $btnDiff.Size = New-Object System.Drawing.Size(160, 30)
 $form.Controls.Add($btnDiff)
 
 $btnFolder = New-Object System.Windows.Forms.Button
-$btnFolder.Text = '¶}±Ò¦sÀÉ¦ì¸m'
+$btnFolder.Text = 'é–‹å•Ÿå­˜æª”ä½ç½®'
 $btnFolder.Location = New-Object System.Drawing.Point(640, 12)
 $btnFolder.Size = New-Object System.Drawing.Size(120, 30)
 $form.Controls.Add($btnFolder)
@@ -130,7 +130,7 @@ $form.Controls.Add($btnFolder)
 $status = New-Object System.Windows.Forms.Label
 $status.Location = New-Object System.Drawing.Point(12, 50)
 $status.AutoSize = $true
-$status.Text = '©|¥¼§ì¨ú¡C¥ı¦b¥¿±`ª¬ºA§ì¤@¦¸¡A¥¢®Ä«á¦A§ì¤@¦¸¡C'
+$status.Text = 'å°šæœªæŠ“å–ã€‚å…ˆåœ¨æ­£å¸¸ç‹€æ…‹æŠ“ä¸€æ¬¡ï¼Œå¤±æ•ˆå¾Œå†æŠ“ä¸€æ¬¡ã€‚'
 $form.Controls.Add($status)
 
 $box = New-Object System.Windows.Forms.TextBox
@@ -145,28 +145,28 @@ $box.Anchor = 'Top,Bottom,Left,Right'
 $form.Controls.Add($box)
 
 $btnNormal.Add_Click({
-    $status.Text = '§ì¨ú¤¤...'
+    $status.Text = 'æŠ“å–ä¸­...'
     $form.Refresh()
     $script:NormalSnap = Get-RecentEvents -Minutes ([int]$num.Value)
-    $text = Format-Snapshot -Events $script:NormalSnap -Label '¥¿±`'
-    Set-Content -Path $NormalFile -Value $text -Encoding Default
+    $text = Format-Snapshot -Events $script:NormalSnap -Label 'æ­£å¸¸'
+    Set-Content -Path $NormalFile -Value $text -Encoding UTF8
     $box.Text = $text
-    $status.Text = ("¤w¦s¥¿±`§Ö·Ó¡]{0} µ§¡^¡÷ {1}" -f $script:NormalSnap.Count, $NormalFile)
+    $status.Text = ("å·²å­˜æ­£å¸¸å¿«ç…§ï¼ˆ{0} ç­†ï¼‰â†’ {1}" -f $script:NormalSnap.Count, $NormalFile)
 })
 
 $btnAbnormal.Add_Click({
-    $status.Text = '§ì¨ú¤¤...'
+    $status.Text = 'æŠ“å–ä¸­...'
     $form.Refresh()
     $script:AbnormalSnap = Get-RecentEvents -Minutes ([int]$num.Value)
-    $text = Format-Snapshot -Events $script:AbnormalSnap -Label '²§±`'
-    Set-Content -Path $AbnormalFile -Value $text -Encoding Default
+    $text = Format-Snapshot -Events $script:AbnormalSnap -Label 'ç•°å¸¸'
+    Set-Content -Path $AbnormalFile -Value $text -Encoding UTF8
     $box.Text = $text
-    $status.Text = ("¤w¦s²§±`§Ö·Ó¡]{0} µ§¡^¡÷ {1}" -f $script:AbnormalSnap.Count, $AbnormalFile)
+    $status.Text = ("å·²å­˜ç•°å¸¸å¿«ç…§ï¼ˆ{0} ç­†ï¼‰â†’ {1}" -f $script:AbnormalSnap.Count, $AbnormalFile)
 })
 
 $btnDiff.Add_Click({
     if (-not $script:NormalSnap -or -not $script:AbnormalSnap) {
-        [System.Windows.Forms.MessageBox]::Show('½Ğ¥ı¦U§ì¤@¦¸¥¿±`»P²§±`§Ö·Ó¡C','¤ñ¹ï®t²§') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show('è«‹å…ˆå„æŠ“ä¸€æ¬¡æ­£å¸¸èˆ‡ç•°å¸¸å¿«ç…§ã€‚','æ¯”å°å·®ç•°') | Out-Null
         return
     }
     $normalSigs = @{}
@@ -175,19 +175,19 @@ $btnDiff.Add_Click({
     $onlyAbnormal = $script:AbnormalSnap | Where-Object { -not $normalSigs.ContainsKey((Get-Signature $_)) }
 
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine('===== ¥u¦b¡u²§±`¡v¥X²{ªº¨Æ¥ó¡]¥iºÃ¤¸¥û¡A¥Ñ·s¨ìÂÂ¡^=====')
+    [void]$sb.AppendLine('===== åªåœ¨ã€Œç•°å¸¸ã€å‡ºç¾çš„äº‹ä»¶ï¼ˆå¯ç–‘å…ƒå…‡ï¼Œç”±æ–°åˆ°èˆŠï¼‰=====')
     if (-not $onlyAbnormal) {
-        [void]$sb.AppendLine('  µL®t²§¡C¤¸¥û¥i¯à¤£¦b³o¨Ç¤é»x¡A¸ÕµÛ¥[¤j¦^·¹¤ÀÄÁ¼Æ¡A©Î§ï§ì¨ä¥L log¡C')
+        [void]$sb.AppendLine('  ç„¡å·®ç•°ã€‚å…ƒå…‡å¯èƒ½ä¸åœ¨é€™äº›æ—¥èªŒï¼Œè©¦è‘—åŠ å¤§å›æº¯åˆ†é˜æ•¸ï¼Œæˆ–æ”¹æŠ“å…¶ä»– logã€‚')
     } else {
         foreach ($e in ($onlyAbnormal | Sort-Object Time -Descending)) {
             [void]$sb.AppendLine(("  [{0}] {1} / Id={2}`n        {3}" -f `
                 $e.Time.ToString('HH:mm:ss'), $e.Provider, $e.Id, $e.Message))
         }
         [void]$sb.AppendLine('')
-        [void]$sb.AppendLine('¡÷ §â³Ì¤W­±´XÁû¨Æ¥óªº Provider + Id ¶K¦^¨Ó¡A§Ú´N¯à§â¥¦°µ¦¨±Æµ{µo°ÊÂI¡C')
+        [void]$sb.AppendLine('â†’ æŠŠæœ€ä¸Šé¢å¹¾é¡†äº‹ä»¶çš„ Provider + Id è²¼å›ä¾†ï¼Œæˆ‘å°±èƒ½æŠŠå®ƒåšæˆæ’ç¨‹ç™¼å‹•é»ã€‚')
     }
     $box.Text = $sb.ToString()
-    $status.Text = ("¤ñ¹ï§¹¦¨¡G²§±`¿W¦³¨Æ¥ó {0} µ§¡C" -f @($onlyAbnormal).Count)
+    $status.Text = ("æ¯”å°å®Œæˆï¼šç•°å¸¸ç¨æœ‰äº‹ä»¶ {0} ç­†ã€‚" -f @($onlyAbnormal).Count)
 })
 
 $btnFolder.Add_Click({
