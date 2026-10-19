@@ -25,10 +25,10 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # ---------- C# 低階 hook ----------
-# callback 只把事件字串塞進 ConcurrentQueue，UI 由 PowerShell 端的 Timer 排空。
+# callback 只把事件字串塞進 Queue，UI 由 PowerShell 端的 Timer 排空。
 $cs = @'
 using System;
-using System.Collections.Concurrent;
+using System.Collections;
 using System.Runtime.InteropServices;
 
 public static class LlHook
@@ -71,8 +71,8 @@ public static class LlHook
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr GetModuleHandle(string lpModuleName);
 
-    // UI 端讀這個佇列
-    public static ConcurrentQueue<string> Queue = new ConcurrentQueue<string>();
+    // UI 端讀這個佇列（用同步包裝的非泛型 Queue，PS 5.1 / 7 都不需額外組件參考）
+    public static Queue Queue = Queue.Synchronized(new Queue());
 
     private static IntPtr _kbHook = IntPtr.Zero;
     private static IntPtr _msHook = IntPtr.Zero;
@@ -196,7 +196,7 @@ public static class LlHook
 }
 '@
 
-Add-Type -TypeDefinition $cs -ReferencedAssemblies 'System'
+Add-Type -TypeDefinition $cs
 
 $LogFile = Join-Path $env:TEMP 'LogiMouseKeys.txt'
 
@@ -259,9 +259,8 @@ $form.Controls.Add($box)
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 150
 $timer.Add_Tick({
-    $line = ''
-    while ([LlHook]::Queue.TryDequeue([ref]$line)) {
-        Add-Line $line
+    while ([LlHook]::Queue.Count -gt 0) {
+        Add-Line ([string][LlHook]::Queue.Dequeue())
     }
 })
 
