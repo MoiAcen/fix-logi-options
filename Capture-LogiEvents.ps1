@@ -31,9 +31,12 @@ $Logs = @(
 # 會讓我們特別注意的 Provider 關鍵字（睡眠/喚醒/電源/裝置/崩潰）→ 列出來時加 ">>>" 標示。
 $HotKeywords = @('Power', 'Kernel-PnP', 'DeviceSetupManager', 'WHEA', 'Application Error', '.NET Runtime', 'Wininit')
 
+$BackfillMinutes  = 15      # 開始監看時先回溯這麼多分鐘的歷史事件，證明讀得到日誌
 $script:Watching  = $false
 $script:WatchFrom = Get-Date
-$script:SeenIds   = @{}    # key: "log#recordid" → 已顯示過，避免重複
+$script:SeenIds   = @{}      # key: "log#recordid" → 已顯示過，避免重複
+$script:PollCount = 0
+$script:EventCount = 0
 
 function Add-Line {
     param([string]$Text)
@@ -46,7 +49,7 @@ function Poll-Events {
     $batch = @()
     foreach ($log in $Logs) {
         try {
-            $evts = Get-WinEvent -FilterHashtable @{ LogName = $log; StartTime = $script:WatchFrom } -MaxEvents 200 -ErrorAction Stop
+            $evts = Get-WinEvent -FilterHashtable @{ LogName = $log; StartTime = $script:WatchFrom } -MaxEvents 500 -ErrorAction Stop
             foreach ($e in $evts) {
                 $key = "$log#$($e.RecordId)"
                 if ($script:SeenIds.ContainsKey($key)) { continue }
@@ -56,6 +59,12 @@ function Poll-Events {
         } catch {
             # 該 log 沒有符合的事件或未啟用 → 略過。
         }
+    }
+    # 高水位推進：下次只從目前最新事件時間往後看（留 2 秒緩衝，同秒事件靠 SeenIds 去重）。
+    if ($batch.Count -gt 0) {
+        $script:EventCount += $batch.Count
+        $maxT = ($batch.Time | Measure-Object -Maximum).Maximum
+        $script:WatchFrom = $maxT.AddSeconds(-2)
     }
     foreach ($b in ($batch | Sort-Object Time)) {
         $msg = ''
@@ -138,20 +147,31 @@ $form.Controls.Add($box)
 # 輪詢用計時器
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 5000
-$timer.Add_Tick({ Poll-Events })
+$timer.Add_Tick({
+    Poll-Events
+    $status.Text = ("監看中…第 {0} 次輪詢 @ {1}，累計 {2} 筆事件。失效時按【⚠ 標記此刻失效】。" -f `
+        $script:PollCount, (Get-Date -Format 'HH:mm:ss'), $script:EventCount)
+    $script:PollCount++
+})
 
 $btnWatch.Add_Click({
     if (-not $script:Watching) {
-        $script:Watching  = $true
-        $script:WatchFrom = Get-Date
-        $script:SeenIds   = @{}
-        $timer.Interval   = [int]$num.Value * 1000
-        $timer.Start()
+        $script:Watching   = $true
+        $script:SeenIds    = @{}
+        $script:PollCount  = 1
+        $script:EventCount = 0
+        $timer.Interval    = [int]$num.Value * 1000
         $btnWatch.Text = '停止監看'
         $btnWatch.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
         Add-Line ''
         Add-Line ("==================== 開始監看 @ {0}（每 {1} 秒輪詢）====================" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), [int]$num.Value)
-        $status.Text = '監看中…讓電腦照常用；睡眠喚醒後、按鍵失效時立刻按標記。'
+        # 先回溯最近 15 分鐘，立刻看到歷史事件 → 證明日誌讀得到。
+        Add-Line ("---- 回溯最近 {0} 分鐘的事件 ----" -f $BackfillMinutes)
+        $script:WatchFrom = (Get-Date).AddMinutes(-$BackfillMinutes)
+        Poll-Events
+        Add-Line ("---- 回溯完畢（{0} 筆），以下為即時新事件 ----" -f $script:EventCount)
+        $status.Text = ("監看中…已回溯 {0} 筆。讓電腦照常用；睡眠喚醒後、按鍵失效時立刻按標記。" -f $script:EventCount)
+        $timer.Start()
     } else {
         $timer.Stop()
         $script:Watching = $false
