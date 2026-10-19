@@ -25,7 +25,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # ---------- C# 低階 hook ----------
-# callback 只把事件字串塞進 Queue，UI 由 PowerShell 端的 Timer 排空。
+# callback 只把事件字串塞進 ConcurrentQueue，UI 由 PowerShell 端的 Timer 排空。
 $cs = @'
 using System;
 using System.Collections;
@@ -116,8 +116,10 @@ public static class LlHook
             bool injected = (k.flags & LLKHF_INJECTED) != 0;
             string name = KeyName(k.vkCode);
             string tag = "";
-            if (_altDown && k.vkCode == 0x25) tag = "  【上一頁 Back (Alt+Left)】";
-            if (_altDown && k.vkCode == 0x27) tag = "  【下一頁 Forward (Alt+Right)】";
+            if (_altDown && k.vkCode == 0x25)
+                tag = injected ? "  【上一頁 Back (Alt+Left)｜羅技注入=正常✓】" : "  【Alt+Left｜原始鍵盤，非羅技】";
+            if (_altDown && k.vkCode == 0x27)
+                tag = injected ? "  【下一頁 Forward (Alt+Right)｜羅技注入=正常✓】" : "  【Alt+Right｜原始鍵盤，非羅技】";
 
             string line = string.Format("KBD   VK=0x{0:X2}({1}) {2} injected={3} Alt={4}{5}",
                 k.vkCode, name, (down ? "DOWN" : (up ? "UP" : "?")),
@@ -153,16 +155,20 @@ public static class LlHook
                     {
                         int xb = (int)(m.mouseData >> 16);  // 1=X1, 2=X2
                         string ud = (msg == WM_XBUTTONDOWN) ? "DOWN" : "UP";
-                        if (xb == 1) { what = "XBUTTON1 " + ud; tag = "  【上一頁 Back】"; }
-                        else if (xb == 2) { what = "XBUTTON2 " + ud; tag = "  【下一頁 Forward】"; }
-                        else { what = "XBUTTON? " + ud; }
+                        string dir = (xb == 1) ? "上一頁 Back" : (xb == 2) ? "下一頁 Forward" : "?";
+                        what = "XBUTTON" + xb + " " + ud;
+                        // injected=Yes → 羅技重映射有生效（你設定的鍵）；injected=No → 原始硬體側鍵
+                        tag = injected
+                            ? "  【" + dir + "｜羅技注入=正常✓】"
+                            : "  【" + dir + "｜原始硬體鍵，非羅技】";
                         break;
                     }
                 }
                 if (what != null)
                 {
                     string line = string.Format("MOUSE {0} injected={1}{2}", what, (injected ? "Yes" : "No"), tag);
-                    Enqueue(line, injected || tag.Length > 0);
+                    // 只把「羅技注入(injected=Yes)」標成 >>>，那才是你設定的鍵有生效
+                    Enqueue(line, injected);
                 }
             }
         }
@@ -272,7 +278,7 @@ $btnCap.Add_Click({
         $btnCap.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
         Add-Line ''
         Add-Line ("==================== 開始捕捉 @ {0} ====================" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
-        Add-Line '   正常：按自訂鍵應出現【上一頁 Back】/【下一頁 Forward】（多半 injected=Yes）'
+        Add-Line '   正常：按你設定的滾輪側鍵 → >>> injected=Yes（羅技注入）；失效：同一顆完全無事件。'
         $status.Text = '捕捉中…按你的自訂鍵看它變成什麼事件。'
     } else {
         [LlHook]::Stop()
