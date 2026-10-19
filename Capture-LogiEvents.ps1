@@ -1,136 +1,127 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    簡易事件補捉 UI：在「正常」與「異常」兩種狀態各抓一次最近事件，再比對差異，
-    找出和 Logitech 自訂鍵失效相關的那顆系統事件。
+    即時事件監看 UI：開著它盯住事件流，Logitech 自訂鍵一失效就按下標記，
+    元兇事件就在標記線上方最近幾顆。
 .DESCRIPTION
     用法：
-      1. 按鍵還正常時，按【抓取 → 標記正常】。
-      2. 按鍵失效後（例如睡眠喚醒後），按【抓取 → 標記異常】。
-      3. 按【比對差異】→ 列出「只在異常時出現」的事件，那通常就是元兇。
-    不會動到任何進程，純讀取事件日誌。兩份快照存在 %TEMP%\LogiEvents_*.txt。
+      1. 按【開始監看】→ 它每隔幾秒把「新冒出來的」事件即時列進時間軸。
+      2. 讓電腦照常用 / 睡眠 / 喚醒。按鍵一失效，立刻按【⚠ 標記此刻失效】。
+      3. 看標記橫線「上方」最近幾顆事件 → 那通常就是元兇。
+      4. 想分辨是崩潰還是卡死：若 Application 日誌跳出 Application Error / .NET
+         Runtime，代表 LogiOptionsMgr 崩潰了；若什麼都沒有卻失效，就是卡死。
+    純讀取，不會動任何進程。整條時間軸即時存到 %TEMP%\LogiEventTimeline.txt。
 #>
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$script:NormalSnap   = $null
-$script:AbnormalSnap = $null
-$NormalFile   = Join-Path $env:TEMP 'LogiEvents_Normal.txt'
-$AbnormalFile = Join-Path $env:TEMP 'LogiEvents_Abnormal.txt'
+$TimelineFile = Join-Path $env:TEMP 'LogiEventTimeline.txt'
 
-# 要掃描的事件日誌。System 一定在，含 Power-Troubleshooter / Kernel-Power / Kernel-PnP；
-# 裝置相關的 operational log 不一定開啟，用 try/catch 容錯。
-$LogNames = @(
+# 要即時監看的日誌。System 含 Power-Troubleshooter / Kernel-Power / Kernel-PnP；
+# Application 會記錄程式崩潰（Application Error / .NET Runtime）→ 用來分辨崩潰 vs 卡死；
+# 兩個 operational log 不一定啟用，用 try/catch 容錯。
+$Logs = @(
     'System',
+    'Application',
     'Microsoft-Windows-Kernel-PnP/Configuration',
     'Microsoft-Windows-DeviceSetupManager/Admin'
 )
 
-# 抓取最近 N 分鐘的事件，回傳物件陣列（Time/Log/Provider/Id/Message）。
-function Get-RecentEvents {
-    param([int]$Minutes)
-    $start = (Get-Date).AddMinutes(-$Minutes)
-    $all = @()
-    foreach ($log in $LogNames) {
+# 會讓我們特別注意的 Provider 關鍵字（睡眠/喚醒/電源/裝置/崩潰）→ 列出來時加 ">>>" 標示。
+$HotKeywords = @('Power', 'Kernel-PnP', 'DeviceSetupManager', 'WHEA', 'Application Error', '.NET Runtime', 'Wininit')
+
+$script:Watching  = $false
+$script:WatchFrom = Get-Date
+$script:SeenIds   = @{}    # key: "log#recordid" → 已顯示過，避免重複
+
+function Add-Line {
+    param([string]$Text)
+    $box.AppendText($Text + "`r`n")
+    try { Add-Content -Path $TimelineFile -Value $Text -Encoding UTF8 -ErrorAction Stop } catch { }
+}
+
+# 輪詢一次：把每個日誌中「WatchFrom 之後、還沒顯示過」的事件列出來（由舊到新）。
+function Poll-Events {
+    $batch = @()
+    foreach ($log in $Logs) {
         try {
-            $evts = Get-WinEvent -FilterHashtable @{ LogName = $log; StartTime = $start } -ErrorAction Stop
+            $evts = Get-WinEvent -FilterHashtable @{ LogName = $log; StartTime = $script:WatchFrom } -MaxEvents 200 -ErrorAction Stop
             foreach ($e in $evts) {
-                $msg = ''
-                if ($e.Message) { $msg = ($e.Message -split "`r?`n")[0] }
-                if ($msg.Length -gt 120) { $msg = $msg.Substring(0, 120) }
-                $all += [pscustomobject]@{
-                    Time     = $e.TimeCreated
-                    Log      = $log
-                    Provider = $e.ProviderName
-                    Id       = $e.Id
-                    Message  = $msg
-                }
+                $key = "$log#$($e.RecordId)"
+                if ($script:SeenIds.ContainsKey($key)) { continue }
+                $script:SeenIds[$key] = $true
+                $batch += [pscustomobject]@{ Time = $e.TimeCreated; Log = $log; Provider = $e.ProviderName; Id = $e.Id; Event = $e }
             }
         } catch {
-            # 該 log 不存在或未啟用 → 略過。
+            # 該 log 沒有符合的事件或未啟用 → 略過。
         }
     }
-    return ($all | Sort-Object Time)
-}
-
-# 事件的「身分簽章」：忽略時間，用 Provider+Id 當 key，方便比對。
-function Get-Signature {
-    param($Evt)
-    return ("{0}|{1}" -f $Evt.Provider, $Evt.Id)
-}
-
-# 把事件陣列轉成可讀文字（含目前 Logitech 進程狀態一併記錄）。
-function Format-Snapshot {
-    param($Events, [string]$Label)
-    $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine(("===== {0} 快照 @ {1} =====" -f $Label, (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')))
-
-    foreach ($name in @('LogiOptions','LogiOptionsMgr','LogiOverlay')) {
-        $p = Get-Process -Name $name -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($p) {
-            $st = try { $p.StartTime.ToString('HH:mm:ss') } catch { '未知' }
-            [void]$sb.AppendLine(("  進程 {0}: 執行中 PID={1} Start={2}" -f $name, $p.Id, $st))
-        } else {
-            [void]$sb.AppendLine(("  進程 {0}: 未在執行" -f $name))
-        }
+    foreach ($b in ($batch | Sort-Object Time)) {
+        $msg = ''
+        if ($b.Event.Message) { $msg = ($b.Event.Message -split "`r?`n")[0] }
+        if ($msg.Length -gt 110) { $msg = $msg.Substring(0, 110) }
+        $hot = $false
+        foreach ($k in $HotKeywords) { if ("$($b.Provider) $msg" -like "*$k*") { $hot = $true; break } }
+        $mark = if ($hot) { '>>>' } else { '   ' }
+        Add-Line ("{0} [{1}] {2} / Id={3} :: {4}" -f $mark, $b.Time.ToString('HH:mm:ss'), $b.Provider, $b.Id, $msg)
     }
-    [void]$sb.AppendLine(("  共 {0} 筆事件:" -f $Events.Count))
-    foreach ($e in $Events) {
-        [void]$sb.AppendLine(("  [{0}] {1} / Id={2} :: {3}" -f `
-            $e.Time.ToString('HH:mm:ss'), $e.Provider, $e.Id, $e.Message))
-    }
-    return $sb.ToString()
 }
 
 # ---------------- 介面 ----------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Logitech 事件補捉器'
-$form.Size = New-Object System.Drawing.Size(860, 640)
+$form.Text = 'Logitech 即時事件監看器'
+$form.Size = New-Object System.Drawing.Size(900, 640)
 $form.StartPosition = 'CenterScreen'
 
 $lbl = New-Object System.Windows.Forms.Label
-$lbl.Text = '回溯分鐘數：'
+$lbl.Text = '輪詢秒數：'
 $lbl.Location = New-Object System.Drawing.Point(12, 16)
 $lbl.AutoSize = $true
 $form.Controls.Add($lbl)
 
 $num = New-Object System.Windows.Forms.NumericUpDown
-$num.Location = New-Object System.Drawing.Point(96, 14)
-$num.Minimum = 1; $num.Maximum = 240; $num.Value = 10
-$num.Width = 60
+$num.Location = New-Object System.Drawing.Point(84, 14)
+$num.Minimum = 2; $num.Maximum = 60; $num.Value = 5
+$num.Width = 55
 $form.Controls.Add($num)
 
-$btnNormal = New-Object System.Windows.Forms.Button
-$btnNormal.Text = '抓取 → 標記正常'
-$btnNormal.Location = New-Object System.Drawing.Point(170, 12)
-$btnNormal.Size = New-Object System.Drawing.Size(140, 30)
-$btnNormal.BackColor = [System.Drawing.Color]::FromArgb(200, 240, 200)
-$form.Controls.Add($btnNormal)
+$btnWatch = New-Object System.Windows.Forms.Button
+$btnWatch.Text = '開始監看'
+$btnWatch.Location = New-Object System.Drawing.Point(150, 12)
+$btnWatch.Size = New-Object System.Drawing.Size(110, 30)
+$btnWatch.BackColor = [System.Drawing.Color]::FromArgb(200, 240, 200)
+$form.Controls.Add($btnWatch)
 
-$btnAbnormal = New-Object System.Windows.Forms.Button
-$btnAbnormal.Text = '抓取 → 標記異常'
-$btnAbnormal.Location = New-Object System.Drawing.Point(320, 12)
-$btnAbnormal.Size = New-Object System.Drawing.Size(140, 30)
-$btnAbnormal.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
-$form.Controls.Add($btnAbnormal)
+$btnMark = New-Object System.Windows.Forms.Button
+$btnMark.Text = '⚠ 標記此刻失效'
+$btnMark.Location = New-Object System.Drawing.Point(270, 12)
+$btnMark.Size = New-Object System.Drawing.Size(150, 30)
+$btnMark.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
+$form.Controls.Add($btnMark)
 
-$btnDiff = New-Object System.Windows.Forms.Button
-$btnDiff.Text = '比對差異（找元兇）'
-$btnDiff.Location = New-Object System.Drawing.Point(470, 12)
-$btnDiff.Size = New-Object System.Drawing.Size(160, 30)
-$form.Controls.Add($btnDiff)
+$btnProc = New-Object System.Windows.Forms.Button
+$btnProc.Text = '記錄進程狀態'
+$btnProc.Location = New-Object System.Drawing.Point(430, 12)
+$btnProc.Size = New-Object System.Drawing.Size(120, 30)
+$form.Controls.Add($btnProc)
 
 $btnFolder = New-Object System.Windows.Forms.Button
 $btnFolder.Text = '開啟存檔位置'
-$btnFolder.Location = New-Object System.Drawing.Point(640, 12)
+$btnFolder.Location = New-Object System.Drawing.Point(560, 12)
 $btnFolder.Size = New-Object System.Drawing.Size(120, 30)
 $form.Controls.Add($btnFolder)
+
+$btnClear = New-Object System.Windows.Forms.Button
+$btnClear.Text = '清空畫面'
+$btnClear.Location = New-Object System.Drawing.Point(690, 12)
+$btnClear.Size = New-Object System.Drawing.Size(90, 30)
+$form.Controls.Add($btnClear)
 
 $status = New-Object System.Windows.Forms.Label
 $status.Location = New-Object System.Drawing.Point(12, 50)
 $status.AutoSize = $true
-$status.Text = '尚未抓取。先在正常狀態抓一次，失效後再抓一次。'
+$status.Text = '尚未開始。按【開始監看】後它會即時列出新事件；按鍵失效時按【⚠ 標記此刻失效】。'
 $form.Controls.Add($status)
 
 $box = New-Object System.Windows.Forms.TextBox
@@ -140,58 +131,64 @@ $box.WordWrap = $false
 $box.ReadOnly = $true
 $box.Font = New-Object System.Drawing.Font('Consolas', 9)
 $box.Location = New-Object System.Drawing.Point(12, 76)
-$box.Size = New-Object System.Drawing.Size(820, 510)
+$box.Size = New-Object System.Drawing.Size(860, 510)
 $box.Anchor = 'Top,Bottom,Left,Right'
 $form.Controls.Add($box)
 
-$btnNormal.Add_Click({
-    $status.Text = '抓取中...'
-    $form.Refresh()
-    $script:NormalSnap = Get-RecentEvents -Minutes ([int]$num.Value)
-    $text = Format-Snapshot -Events $script:NormalSnap -Label '正常'
-    Set-Content -Path $NormalFile -Value $text -Encoding UTF8
-    $box.Text = $text
-    $status.Text = ("已存正常快照（{0} 筆）→ {1}" -f $script:NormalSnap.Count, $NormalFile)
-})
+# 輪詢用計時器
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = 5000
+$timer.Add_Tick({ Poll-Events })
 
-$btnAbnormal.Add_Click({
-    $status.Text = '抓取中...'
-    $form.Refresh()
-    $script:AbnormalSnap = Get-RecentEvents -Minutes ([int]$num.Value)
-    $text = Format-Snapshot -Events $script:AbnormalSnap -Label '異常'
-    Set-Content -Path $AbnormalFile -Value $text -Encoding UTF8
-    $box.Text = $text
-    $status.Text = ("已存異常快照（{0} 筆）→ {1}" -f $script:AbnormalSnap.Count, $AbnormalFile)
-})
-
-$btnDiff.Add_Click({
-    if (-not $script:NormalSnap -or -not $script:AbnormalSnap) {
-        [System.Windows.Forms.MessageBox]::Show('請先各抓一次正常與異常快照。','比對差異') | Out-Null
-        return
-    }
-    $normalSigs = @{}
-    foreach ($e in $script:NormalSnap) { $normalSigs[(Get-Signature $e)] = $true }
-
-    $onlyAbnormal = $script:AbnormalSnap | Where-Object { -not $normalSigs.ContainsKey((Get-Signature $_)) }
-
-    $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine('===== 只在「異常」出現的事件（可疑元兇，由新到舊）=====')
-    if (-not $onlyAbnormal) {
-        [void]$sb.AppendLine('  無差異。元兇可能不在這些日誌，試著加大回溯分鐘數，或改抓其他 log。')
+$btnWatch.Add_Click({
+    if (-not $script:Watching) {
+        $script:Watching  = $true
+        $script:WatchFrom = Get-Date
+        $script:SeenIds   = @{}
+        $timer.Interval   = [int]$num.Value * 1000
+        $timer.Start()
+        $btnWatch.Text = '停止監看'
+        $btnWatch.BackColor = [System.Drawing.Color]::FromArgb(245, 205, 205)
+        Add-Line ''
+        Add-Line ("==================== 開始監看 @ {0}（每 {1} 秒輪詢）====================" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), [int]$num.Value)
+        $status.Text = '監看中…讓電腦照常用；睡眠喚醒後、按鍵失效時立刻按標記。'
     } else {
-        foreach ($e in ($onlyAbnormal | Sort-Object Time -Descending)) {
-            [void]$sb.AppendLine(("  [{0}] {1} / Id={2}`n        {3}" -f `
-                $e.Time.ToString('HH:mm:ss'), $e.Provider, $e.Id, $e.Message))
-        }
-        [void]$sb.AppendLine('')
-        [void]$sb.AppendLine('→ 把最上面幾顆事件的 Provider + Id 貼回來，我就能把它做成排程發動點。')
+        $timer.Stop()
+        $script:Watching = $false
+        $btnWatch.Text = '開始監看'
+        $btnWatch.BackColor = [System.Drawing.Color]::FromArgb(200, 240, 200)
+        Add-Line ("==================== 停止監看 @ {0} ====================" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+        $status.Text = '已停止。時間軸存於 %TEMP%\LogiEventTimeline.txt'
     }
-    $box.Text = $sb.ToString()
-    $status.Text = ("比對完成：異常獨有事件 {0} 筆。" -f @($onlyAbnormal).Count)
 })
 
-$btnFolder.Add_Click({
-    Start-Process explorer.exe $env:TEMP
+$btnMark.Add_Click({
+    # 先補抓一次，確保失效前的事件都進來了，再打標記。
+    if ($script:Watching) { Poll-Events }
+    Add-Line '########################################################'
+    Add-Line ("############  按鍵失效標記 @ {0}  ############" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+    Add-Line '####  元兇通常是這條線「上方」最近幾顆有 >>> 的事件  ####'
+    Add-Line '########################################################'
+    $status.Text = '已標記失效時刻。看上方最近的 >>> 事件，把 Provider + Id 貼回來。'
 })
 
+$btnProc.Add_Click({
+    Add-Line ("---- 進程狀態 @ {0} ----" -f (Get-Date -Format 'HH:mm:ss'))
+    foreach ($name in @('LogiOptions','LogiOptionsMgr','LogiOverlay')) {
+        $p = Get-Process -Name $name -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($p) {
+            $st = try { $p.StartTime.ToString('MM-dd HH:mm:ss') } catch { '未知' }
+            $resp = try { $p.Responding } catch { '?' }
+            $hwnd = try { [int64]$p.MainWindowHandle } catch { 0 }
+            Add-Line ("    {0,-16} PID={1} Start={2} Responding={3} hWnd={4}" -f $name, $p.Id, $st, $resp, $hwnd)
+        } else {
+            Add-Line ("    {0,-16} 未在執行" -f $name)
+        }
+    }
+})
+
+$btnFolder.Add_Click({ Start-Process explorer.exe $env:TEMP })
+$btnClear.Add_Click({ $box.Clear() })
+
+$form.Add_FormClosing({ $timer.Stop() })
 [void]$form.ShowDialog()
