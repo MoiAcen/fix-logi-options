@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     重啟 Logitech Options 相關進程，恢復滑鼠自訂鍵功能。
