@@ -37,6 +37,9 @@ $script:WatchFrom = Get-Date
 $script:SeenIds   = @{}      # key: "log#recordid" → 已顯示過，避免重複
 $script:PollCount = 0
 $script:EventCount = 0
+$script:DevPrev   = $null    # 上一次的 Logitech 裝置快照；null 代表尚未建立基準
+$script:DevErrShown = $false
+$DevPollEvery     = 3        # 每 N 次輪詢才查一次裝置（Get-PnpDevice 較慢，避免卡住介面）
 
 function Add-Line {
     param([string]$Text)
@@ -75,6 +78,70 @@ function Poll-Events {
         $mark = if ($hot) { '>>>' } else { '   ' }
         Add-Line ("{0} [{1}] {2} / Id={3} :: {4}" -f $mark, $b.Time.ToString('HH:mm:ss'), $b.Provider, $b.Id, $msg)
     }
+}
+
+# 取得目前存在的 Logitech 裝置快照：InstanceId → "Status | LastArrival"。
+# 假設：滑鼠/接收器重新連線（睡眠喚醒、閒置休眠後喚醒）後羅技軟體沒重新接管按鍵。
+# LastArrivalDate 變動就代表該裝置重新到達，可和「失效標記」對時間。
+function Get-LogiDeviceSnapshot {
+    $snap = @{}
+    $devs = Get-PnpDevice -PresentOnly -ErrorAction Stop |
+        Where-Object { $_.InstanceId -match 'VID_046D|VID&0002046D' }
+    foreach ($d in $devs) {
+        $arrival = ''
+        try {
+            $prop = Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName 'DEVPKEY_Device_LastArrivalDate' -ErrorAction Stop
+            if ($prop.Data) { $arrival = ([datetime]$prop.Data).ToString('MM-dd HH:mm:ss') }
+        } catch { }
+        $snap[$d.InstanceId] = [pscustomobject]@{
+            Name    = $d.FriendlyName
+            Status  = [string]$d.Status
+            Arrival = $arrival
+        }
+    }
+    return $snap
+}
+
+# 輪詢 Logitech 裝置狀態；和上一次比對，有變化就打 ### 。第一次只列出基準清單。
+function Poll-Devices {
+    try {
+        $now = Get-LogiDeviceSnapshot
+    } catch {
+        if (-not $script:DevErrShown) {
+            Add-Line '---- [裝置] 無法查詢 PnP 裝置（Get-PnpDevice 失敗），略過裝置監看 ----'
+            $script:DevErrShown = $true
+        }
+        return
+    }
+    $stamp = (Get-Date).ToString('HH:mm:ss')
+    if ($null -eq $script:DevPrev) {
+        Add-Line ("---- [裝置] Logitech 裝置基準（{0} 個）----" -f $now.Count)
+        foreach ($id in ($now.Keys | Sort-Object)) {
+            $v = $now[$id]
+            Add-Line ("    {0} | {1} | 最近到達 {2}" -f $v.Name, $v.Status, $v.Arrival)
+        }
+        $script:DevPrev = $now
+        return
+    }
+    foreach ($id in ($now.Keys | Sort-Object)) {
+        $v = $now[$id]
+        if (-not $script:DevPrev.ContainsKey($id)) {
+            Add-Line ("### [{0}] 裝置出現：{1} ({2})" -f $stamp, $v.Name, $id)
+        } else {
+            $o = $script:DevPrev[$id]
+            if ($o.Arrival -ne $v.Arrival) {
+                Add-Line ("### [{0}] 裝置重新到達：{1} 最近到達 {2} → {3}" -f $stamp, $v.Name, $o.Arrival, $v.Arrival)
+            } elseif ($o.Status -ne $v.Status) {
+                Add-Line ("### [{0}] 裝置狀態改變：{1} {2} → {3}" -f $stamp, $v.Name, $o.Status, $v.Status)
+            }
+        }
+    }
+    foreach ($id in ($script:DevPrev.Keys | Sort-Object)) {
+        if (-not $now.ContainsKey($id)) {
+            Add-Line ("### [{0}] 裝置消失：{1} ({2})" -f $stamp, $script:DevPrev[$id].Name, $id)
+        }
+    }
+    $script:DevPrev = $now
 }
 
 # ---------------- 介面 ----------------
@@ -149,6 +216,7 @@ $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 5000
 $timer.Add_Tick({
     Poll-Events
+    if (($script:PollCount % $DevPollEvery) -eq 0) { Poll-Devices }
     $status.Text = ("監看中…第 {0} 次輪詢 @ {1}，累計 {2} 筆事件。失效時按【⚠ 標記此刻失效】。" -f `
         $script:PollCount, (Get-Date -Format 'HH:mm:ss'), $script:EventCount)
     $script:PollCount++
@@ -170,6 +238,8 @@ $btnWatch.Add_Click({
         $script:WatchFrom = (Get-Date).AddMinutes(-$BackfillMinutes)
         Poll-Events
         Add-Line ("---- 回溯完畢（{0} 筆），以下為即時新事件 ----" -f $script:EventCount)
+        $script:DevPrev = $null
+        Poll-Devices
         $status.Text = ("監看中…已回溯 {0} 筆。讓電腦照常用；睡眠喚醒後、按鍵失效時立刻按標記。" -f $script:EventCount)
         $timer.Start()
     } else {
@@ -184,10 +254,10 @@ $btnWatch.Add_Click({
 
 $btnMark.Add_Click({
     # 先補抓一次，確保失效前的事件都進來了，再打標記。
-    if ($script:Watching) { Poll-Events }
+    if ($script:Watching) { Poll-Events; Poll-Devices }
     Add-Line '########################################################'
     Add-Line ("############  按鍵失效標記 @ {0}  ############" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
-    Add-Line '####  元兇通常是這條線「上方」最近幾顆有 >>> 的事件  ####'
+    Add-Line '####  看上方最近的 >>> 事件，以及有沒有 ### 裝置重新到達  ####'
     Add-Line '########################################################'
     $status.Text = '已標記失效時刻。看上方最近的 >>> 事件，把 Provider + Id 貼回來。'
 })
